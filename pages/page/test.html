@@ -206,11 +206,11 @@
 
   $("btn-start").onclick = () => {
     const raw = $("pid").value.trim().toUpperCase();
-if (!/^S\d{1,2}$/.test(raw)) {
-  $("consent-err").textContent = "Please enter your student ID like S01, S02, … S48.";
-  return;
-}
-state.pid = raw;
+    if (!/^S\d{1,2}$/.test(raw)) {
+      $("consent-err").textContent = "Please enter your student ID like S01, S02, ... S48.";
+      return;
+    }
+    state.pid = raw;
     state.list = pickList(state.pid);
     state.startedAt = Date.now();
     saveLocal();
