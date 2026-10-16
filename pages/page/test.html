@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Listening study</title>
+<style>
+  :root { --bg:#f7f7f8; --card:#fff; --ink:#111; --muted:#555;
+          --accent:#1a5cff; --ok:#1f8b3a; --warn:#c33; }
+  * { box-sizing: border-box; }
+  html,body { margin:0; padding:0; background:var(--bg); color:var(--ink);
+              font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+  main { max-width:640px; margin:0 auto; padding:20px; }
+  section { display:none; background:var(--card); border-radius:14px;
+            padding:22px; margin-bottom:16px;
+            box-shadow:0 1px 3px rgba(0,0,0,.06); }
+  section.active { display:block; }
+  h1 { font-size:22px; margin:0 0 14px; }
+  h2 { font-size:18px; margin:18px 0 10px; }
+  p  { margin:8px 0; }
+  button { font:16px/1 inherit; padding:14px 22px; border:0; border-radius:10px;
+           background:var(--accent); color:#fff; font-weight:600;
+           cursor:pointer; min-height:48px; }
+  button:disabled { background:#ccc; cursor:not-allowed; }
+  input[type=text], textarea { width:100%; font:16px/1.4 inherit; padding:12px;
+           border:1px solid #ccc; border-radius:8px; background:#fff; }
+  textarea { min-height:90px; resize:vertical; }
+  label.opt { display:flex; align-items:flex-start; gap:10px; padding:8px 12px;
+          border:1px solid #ddd; border-radius:8px; background:#fafafa;
+          margin:6px 0; cursor:pointer; }
+  label.opt.checked { border-color:var(--accent); background:#eef4ff; }
+  label.opt input { margin-top:4px; }
+  .rating { display:flex; flex-wrap:wrap; gap:6px; margin:8px 0; }
+  .rating button { background:#eee; color:#111; padding:10px 14px; min-height:auto; }
+  .rating button.on { background:var(--accent); color:#fff; }
+  .progress { color:var(--muted); font-size:14px; margin-bottom:10px; }
+  .noplay { color:var(--warn); font-size:14px; margin-top:8px; }
+  .ok    { color:var(--ok); font-size:14px; }
+  .big   { font-size:20px; padding:18px 28px; width:100%; }
+  .row   { display:flex; gap:8px; }
+  .row button { flex:1; }
+</style>
+</head>
+<body>
+<main>
+
+<section id="s-consent" class="active">
+  <h1>Listening study</h1>
+  <p>You will listen to eight short recordings and answer questions after each one.
+     This takes about 45 minutes. Your answers are anonymous and are not graded.</p>
+  <p><strong>Before you start:</strong></p>
+  <ul>
+    <li>Put on your earphones.</li>
+    <li>Find a quiet place.</li>
+    <li>Do not change your phone's volume after the practice item.</li>
+    <li>Audio plays only once. You cannot pause or replay.</li>
+  </ul>
+  <label class="opt"><input type="checkbox" id="c-18">
+    <span>I am 18 years old or older.</span></label>
+  <label class="opt"><input type="checkbox" id="c-vol">
+    <span>I agree to take part. I understand this is voluntary and not graded.</span></label>
+  <p style="margin-top:14px">
+    <label for="pid">Your student ID (as given to you):</label>
+    <input type="text" id="pid" placeholder="e.g. S017" autocomplete="off">
+  </p>
+  <button id="btn-start" class="big" disabled>Begin</button>
+  <p id="consent-err" class="noplay"></p>
+</section>
+
+<section id="s-screening">
+  <div class="progress" id="screen-prog"></div>
+  <h1>Quick warm-up</h1>
+  <p>Ten short English questions. No audio. Just pick the best answer.</p>
+  <div id="screen-body"></div>
+  <button id="screen-next" class="big">Next</button>
+</section>
+
+<section id="s-practice">
+  <h1>Practice item</h1>
+  <p>This is a short practice so you can set your volume to a comfortable level.</p>
+  <p><strong>Important:</strong> after this, do not change your phone's volume.</p>
+  <button id="btn-play-practice" class="big">Play practice</button>
+  <audio id="aud-practice" preload="auto"></audio>
+  <p id="practice-status" class="ok"></p>
+  <button id="btn-practice-next" class="big" disabled>Continue to the test</button>
+</section>
+
+<section id="s-main">
+  <div class="progress" id="main-prog"></div>
+  <h1 id="p-title">Recording 1</h1>
+
+  <div id="stage-play">
+    <p>Listen carefully. The recording plays once and cannot be replayed.</p>
+    <button id="btn-play" class="big">Play recording</button>
+    <audio id="aud-main" preload="auto"></audio>
+    <p id="play-status" class="ok"></p>
+  </div>
+
+  <div id="stage-items" style="display:none">
+    <h2>Questions</h2>
+    <div id="items-body"></div>
+
+    <h2>Dictation</h2>
+    <p>Listen to the sentence again. You may play it <strong>twice</strong>.
+       Type exactly what you hear.</p>
+    <div class="row">
+      <button id="btn-dict-1">Play (1st time)</button>
+      <button id="btn-dict-2" disabled>Play (2nd time)</button>
+    </div>
+    <audio id="aud-dict" preload="auto"></audio>
+    <p style="margin-top:12px">
+      <textarea id="dictation" placeholder="Type what you hear…"></textarea>
+    </p>
+
+    <h2>A few quick ratings</h2>
+    <div id="ratings-body"></div>
+
+    <button id="btn-finish" class="big">Save and continue</button>
+    <p id="save-status" class="noplay"></p>
+  </div>
+</section>
+
+<section id="s-recognition">
+  <h1>One last question</h1>
+  <p>Did you recognise any of the speakers? If yes, which recording numbers?</p>
+  <textarea id="recognition" placeholder="Type 'no' or the numbers, e.g. 2, 5"></textarea>
+  <p style="margin-top:14px"><strong>Have you heard any of these recordings before?</strong></p>
+  <label class="opt"><input type="radio" name="heard" value="no"><span>No</span></label>
+  <label class="opt"><input type="radio" name="heard" value="yes"><span>Yes</span></label>
+  <button id="btn-done" class="big">Finish</button>
+</section>
+
+<section id="s-done">
+  <h1>Thank you</h1>
+  <p>You have finished the study. Please return your phone to the teacher.</p>
+  <p id="done-info" class="ok"></p>
+</section>
+
+</main>
+
+<script src="data.js"></script>
+<script>
+(function () {
+  "use strict";
+  const D = window.BEYONDMOS_DATA;
+  const CFG = D.config;
+  const LS = { sid:"bm_sid", screen:"bm_screen",
+               responses:"bm_responses", meta:"bm_meta" };
+
+  const state = {
+    pid:"", list:"", pos:0,
+    screeningAnswers:{}, current:null,
+    playCount:0, dictCount:0,
+    itemAnswers:{}, ratings:{effort:0,naturalness:0,suitability:0},
+    pending:[], startedAt:null
+  };
+
+  const $  = id => document.getElementById(id);
+  const $$ = sel => Array.from(document.querySelectorAll(sel));
+
+  function show(id) {
+    $$("section").forEach(s => s.classList.remove("active"));
+    $(id).classList.add("active");
+    window.scrollTo(0,0);
+    localStorage.setItem(LS.screen, id);
+  }
+
+  function pickList(pid) {
+    const digits = (pid.match(/\d+/) || ["0"]).join("");
+    const n = parseInt(digits, 10) || 0;
+    return "L" + (1 + (n % 4));
+  }
+
+  function audioUrl(voice, passageId, kind) {
+    const v = D.voice_map[voice];
+    const name = (kind === "P" ? passageId : "D" + passageId.replace(/^P/, ""));
+    return CFG.audio_base + "/" + v.folder + "/" + v.prefix + name + ".wav";
+  }
+
+  function saveLocal() {
+    localStorage.setItem(LS.sid, state.pid);
+    localStorage.setItem(LS.responses, JSON.stringify(state.pending));
+    localStorage.setItem(LS.meta, JSON.stringify({
+      startedAt: state.startedAt, list: state.list, pos: state.pos,
+      screeningAnswers: state.screeningAnswers,
+    }));
+  }
+
+  async function postToServer(row) {
+    try {
+      await fetch(CFG.webapp_url, {
+        method:"POST", mode:"no-cors", body: JSON.stringify(row)
+      });
+      return true;
+    } catch (e) { return false; }
+  }
+
+  // ---------- Consent ----------
+  function updateConsentGate() {
+    const ok = $("c-18").checked && $("c-vol").checked
+            && $("pid").value.trim().length >= 2;
+    $("btn-start").disabled = !ok;
+  }
+  ["c-18","c-vol"].forEach(id => $(id).addEventListener("change", updateConsentGate));
+  $("pid").addEventListener("input", updateConsentGate);
+
+  $("btn-start").onclick = () => {
+    state.pid = $("pid").value.trim().toUpperCase();
+    state.list = pickList(state.pid);
+    state.startedAt = Date.now();
+    saveLocal();
+    startScreening();
+  };
+
+  // ---------- Screening ----------
+  let screenIdx = 0;
+  function startScreening() { screenIdx = 0; renderScreening(); show("s-screening"); }
+
+  function renderScreening() {
+    $("screen-prog").textContent = (screenIdx+1) + " of " + D.screening.length;
+    const q = D.screening[screenIdx];
+    const saved = state.screeningAnswers[q.id] || "";
+    $("screen-body").innerHTML = `
+      <p><strong>${q.stem}</strong></p>
+      <div>${q.options.map((o,i) => {
+        const L = "ABCD"[i];
+        const checked = saved === L ? "checked" : "";
+        return `<label class="opt">
+          <input type="radio" name="scr" value="${L}" ${checked}>
+          <span>${L}. ${o}</span></label>`;
+      }).join("")}</div>`;
+    $$('#screen-body input[type=radio]').forEach(r =>
+      r.addEventListener("change", () => {
+        state.screeningAnswers[q.id] = r.value;
+        $$("#screen-body label").forEach(l => l.classList.remove("checked"));
+        r.closest("label").classList.add("checked");
+        $("screen-next").disabled = false;
+      }));
+    $("screen-next").disabled = !state.screeningAnswers[q.id];
+  }
+
+  $("screen-next").onclick = () => {
+    screenIdx++;
+    if (screenIdx < D.screening.length) renderScreening();
+    else { saveLocal(); startPractice(); }
+  };
+
+  // ---------- Practice ----------
+  function startPractice() {
+    $("aud-practice").src = CFG.audio_base + "/human/" + CFG.practice_passage + ".wav";
+    show("s-practice");
+  }
+  $("btn-play-practice").onclick = () => {
+    const a = $("aud-practice");
+    a.currentTime = 0;
+    a.play().catch(() => {});
+    $("btn-play-practice").disabled = true;
+    $("practice-status").textContent = "Playing… adjust your volume now.";
+    a.onended = () => {
+      $("practice-status").textContent = "Done. Do not change volume after this.";
+      $("btn-practice-next").disabled = false;
+    };
+  };
+  $("btn-practice-next").onclick = () => { state.pos = 0; startPassage(0); show("s-main"); };
+
+  // ---------- Main loop ----------
+  function startPassage(pos) {
+    state.pos = pos;
+    const order = D.latin[state.list];
+    const passageId = "P" + (pos + 1);
+    const voice = order[passageId];
+
+    state.current = { passageId, voice, items: D.items[passageId] };
+    state.playCount = 0; state.dictCount = 0;
+    state.itemAnswers = {};
+    state.ratings = { effort:0, naturalness:0, suitability:0 };
+
+    $("p-title").textContent = "Recording " + (pos + 1);
+    $("main-prog").textContent = (pos + 1) + " of " + CFG.n_passages;
+    $("stage-play").style.display = "block";
+    $("stage-items").style.display = "none";
+    $("btn-play").disabled = false;
+    $("play-status").textContent = "";
+    $("save-status").textContent = "";
+
+    $("aud-main").src = audioUrl(voice, passageId, "P");
+    $("aud-dict").src = audioUrl(voice, passageId, "D");
+    $("aud-dict").load();
+
+    $("btn-dict-1").disabled = false;
+    $("btn-dict-2").disabled = true;
+    $("dictation").value = "";
+
+    renderItems();
+    renderRatings();
+  }
+
+  $("btn-play").onclick = () => {
+    if (state.playCount > 0) return;
+    state.playCount++;
+    $("btn-play").disabled = true;
+    const a = $("aud-main");
+    a.currentTime = 0;
+    a.play().catch(() => {});
+    $("play-status").textContent = "Playing…";
+    a.onended = () => {
+      $("play-status").textContent = "Done.";
+      $("stage-play").style.display = "none";
+      $("stage-items").style.display = "block";
+      window.scrollTo(0,0);
+    };
+  };
+
+  function renderItems() {
+    $("items-body").innerHTML = state.current.items.map((it, i) => `
+      <div style="margin:14px 0">
+        <p><strong>${i+1}. ${it.stem}</strong></p>
+        <div>${it.options.map((o,j) => {
+          const L = "ABCD"[j];
+          return `<label class="opt">
+            <input type="radio" name="it_${i}" value="${L}"
+              data-idx="${i}" data-letter="${L}">
+            <span>${L}. ${o}</span></label>`;
+        }).join("")}</div>
+      </div>`).join("");
+    $$('#items-body input[type=radio]').forEach(r =>
+      r.addEventListener("change", () => {
+        const i = r.dataset.idx;
+        state.itemAnswers[i] = r.dataset.letter;
+        $$(`input[name="it_${i}"]`).forEach(x =>
+          x.closest("label").classList.remove("checked"));
+        r.closest("label").classList.add("checked");
+      }));
+  }
+
+  $("btn-dict-1").onclick = () => {
+    if (state.dictCount >= 1) return;
+    state.dictCount = 1;
+    $("btn-dict-1").disabled = true;
+    const a = $("aud-dict"); a.currentTime = 0; a.play().catch(()=>{});
+    a.onended = () => { $("btn-dict-2").disabled = false; };
+  };
+  $("btn-dict-2").onclick = () => {
+    if (state.dictCount >= 2) return;
+    state.dictCount = 2;
+    $("btn-dict-1").disabled = true; $("btn-dict-2").disabled = true;
+    const a = $("aud-dict"); a.currentTime = 0; a.play().catch(()=>{});
+  };
+
+  function renderRatings() {
+    $("ratings-body").innerHTML = `
+      <div style="margin:14px 0">
+        <p><strong>How much effort did it take to understand this recording?</strong></p>
+        <div class="rating" data-q="effort">
+          ${Array.from({length:9},(_,i)=>`<button data-v="${i+1}">${i+1}</button>`).join("")}
+        </div>
+        <p style="color:#666;font-size:13px">1 = very little … 9 = very much</p>
+      </div>
+      <div style="margin:14px 0">
+        <p><strong>How natural did this voice sound?</strong></p>
+        <div class="rating" data-q="naturalness">
+          ${Array.from({length:5},(_,i)=>`<button data-v="${i+1}">${i+1}</button>`).join("")}
+        </div>
+        <p style="color:#666;font-size:13px">1 = very unnatural … 5 = very natural</p>
+      </div>
+      <div style="margin:14px 0">
+        <p><strong>How suitable is this voice for listening practice for students like you?</strong></p>
+        <div class="rating" data-q="suitability">
+          ${Array.from({length:5},(_,i)=>`<button data-v="${i+1}">${i+1}</button>`).join("")}
+        </div>
+        <p style="color:#666;font-size:13px">1 = not at all suitable … 5 = very suitable</p>
+      </div>`;
+    $$('#ratings-body .rating').forEach(g => {
+      g.querySelectorAll("button").forEach(b =>
+        b.addEventListener("click", () => {
+          state.ratings[g.dataset.q] = parseInt(b.dataset.v, 10);
+          g.querySelectorAll("button").forEach(x => x.classList.remove("on"));
+          b.classList.add("on");
+        }));
+    });
+  }
+
+  $("btn-finish").onclick = async () => {
+    const it = state.current.items;
+    if (it.map((_, i) => state.itemAnswers[i]).some(x => !x)) {
+      $("save-status").textContent = "Please answer all five questions."; return;
+    }
+    if (!state.ratings.effort || !state.ratings.naturalness
+        || !state.ratings.suitability) {
+      $("save-status").textContent = "Please answer all three ratings."; return;
+    }
+    $("btn-finish").disabled = true;
+    $("save-status").textContent = "Saving…";
+
+    const row = {
+      participant_id: state.pid,
+      list_id: state.list,
+      position: state.pos + 1,
+      passage_id: state.current.passageId,
+      voice_code: state.current.voice,
+      q1: state.itemAnswers[0] || "", q1_key: it[0].key,
+      q2: state.itemAnswers[1] || "", q2_key: it[1].key,
+      q3: state.itemAnswers[2] || "", q3_key: it[2].key,
+      q4: state.itemAnswers[3] || "", q4_key: it[3].key,
+      q5: state.itemAnswers[4] || "", q5_key: it[4].key,
+      dictation_text: $("dictation").value.trim(),
+      effort: state.ratings.effort,
+      naturalness: state.ratings.naturalness,
+      suitability: state.ratings.suitability,
+      started_at: state.startedAt,
+      finished_at: Date.now(),
+      user_agent: navigator.userAgent,
+    };
+    await postToServer(row);
+    $("btn-finish").disabled = false;
+
+    if (state.pos + 1 < CFG.n_passages) startPassage(state.pos + 1);
+    else show("s-recognition");
+  };
+
+  $("btn-done").onclick = async () => {
+    const row = {
+      participant_id: state.pid,
+      list_id: state.list,
+      passage_id: "RECOGNITION",
+      voice_code: "",
+      dictation_text: $("recognition").value.trim(),
+      effort: (document.querySelector('input[name="heard"]:checked')||{}).value || "",
+      started_at: state.startedAt,
+      finished_at: Date.now(),
+    };
+    await postToServer(row);
+    $("done-info").textContent = "Your ID was " + state.pid + ".";
+    show("s-done");
+  };
+
+  window.addEventListener("online", () => {
+    state.pending.forEach(r => postToServer(r));
+    state.pending = [];
+    saveLocal();
+  });
+
+})();
+</script>
+</body>
+</html>

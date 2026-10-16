@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BeyondMOS — Teacher rating</title>
+<style>
+  body { margin:0; background:#f7f7f8; color:#111;
+         font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+  main { max-width:640px; margin:0 auto; padding:20px; }
+  section { display:none; background:#fff; border-radius:14px; padding:22px;
+            box-shadow:0 1px 3px rgba(0,0,0,.06); }
+  section.active { display:block; }
+  h1 { font-size:22px; margin:0 0 14px; }
+  button { font:16px/1 inherit; padding:14px 22px; border:0; border-radius:10px;
+           background:#1a5cff; color:#fff; font-weight:600; cursor:pointer;
+           min-height:48px; }
+  button:disabled { background:#ccc; cursor:not-allowed; }
+  input[type=text], input[type=number] { width:100%; font:16px inherit;
+           padding:12px; border:1px solid #ccc; border-radius:8px; }
+  .rating { display:flex; gap:6px; margin:8px 0; flex-wrap:wrap; }
+  .rating button { background:#eee; color:#111; padding:10px 14px; min-height:auto; }
+  .rating button.on { background:#1a5cff; color:#fff; }
+  .progress { color:#666; font-size:14px; margin-bottom:10px; }
+  .big { width:100%; }
+</style>
+</head>
+<body>
+<main>
+
+<section id="s-welcome" class="active">
+  <h1>Teacher rating panel</h1>
+  <p>You will hear 32 short excerpts and rate how natural each voice sounds.
+     About 20 minutes. Anonymous. Please use earphones in a quiet place.</p>
+  <p style="margin-top:14px">Years of teaching English<br>
+    <input type="number" id="years" min="0" max="60"></p>
+  <p>First language<br>
+    <input type="text" id="l1" placeholder="e.g. Uzbek"></p>
+  <p>Your initials<br>
+    <input type="text" id="rid" placeholder="e.g. AA" autocomplete="off"></p>
+  <p><label style="display:flex;gap:10px">
+    <input type="checkbox" id="consent">
+    <span>I am 18+ and I agree to take part.</span>
+  </label></p>
+  <button id="btn-start" class="big" disabled>Begin</button>
+</section>
+
+<section id="s-rate">
+  <div class="progress" id="prog"></div>
+  <p id="title">Excerpt</p>
+  <audio id="aud" preload="auto"></audio>
+  <p><button id="btn-play" class="big">Play excerpt</button></p>
+  <div id="rate-block" style="display:none">
+    <p><strong>How natural did this voice sound?</strong></p>
+    <div class="rating" id="rating">
+      <button data-v="1">1</button><button data-v="2">2</button>
+      <button data-v="3">3</button><button data-v="4">4</button>
+      <button data-v="5">5</button>
+    </div>
+    <p style="color:#666;font-size:13px">1 = very unnatural … 5 = very natural</p>
+    <button id="btn-next" class="big" disabled>Next</button>
+  </div>
+</section>
+
+<section id="s-done">
+  <h1>Thank you</h1>
+  <p>Your ratings have been recorded anonymously.</p>
+</section>
+
+</main>
+
+<script src="data.js"></script>
+<script>
+(function () {
+  "use strict";
+  const D = window.BEYONDMOS_DATA;
+  const CFG = D.config;
+  const $ = id => document.getElementById(id);
+  const $$ = s => Array.from(document.querySelectorAll(s));
+
+  const trials = [];
+  for (const v of ["H","OS","LD","LL"])
+    for (let i = 1; i <= 8; i++)
+      trials.push({ voice: v, passage: "P" + i });
+
+  function seedShuffle(arr, seed) {
+    let s = seed;
+    const rnd = () => (s = (s * 1103515245 + 12345) % 2147483648) / 2147483648;
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(rnd() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+  seedShuffle(trials, 20261016);
+
+  let idx = 0, meta = { years:0, l1:"", rid:"" };
+
+  function updateGate() {
+    $("btn-start").disabled = !($("consent").checked
+      && $("rid").value.trim().length >= 2);
+  }
+  ["consent","rid","years","l1"].forEach(id =>
+    $(id).addEventListener("input", updateGate));
+  $("consent").addEventListener("change", updateGate);
+
+  $("btn-start").onclick = () => {
+    meta = {
+      years: parseInt($("years").value, 10) || 0,
+      l1: $("l1").value.trim(),
+      rid: $("rid").value.trim().toUpperCase(),
+    };
+    idx = 0;
+    $("s-welcome").classList.remove("active");
+    $("s-rate").classList.add("active");
+    render();
+  };
+
+  function audioUrl(voice, passage) {
+    const v = D.voice_map[voice];
+    return CFG.audio_base + "/" + v.folder + "/" + v.prefix + passage + ".wav";
+  }
+
+  function render() {
+    if (idx >= trials.length) { finish(); return; }
+    const t = trials[idx];
+    $("prog").textContent = (idx+1) + " of " + trials.length;
+    $("title").textContent = "Excerpt " + (idx+1);
+    const a = $("aud");
+    a.src = audioUrl(t.voice, t.passage);
+    a.currentTime = 0; a.load();
+    $("btn-play").disabled = false;
+    $("rate-block").style.display = "none";
+    $("btn-next").disabled = true;
+    $$("#rating button").forEach(b => b.classList.remove("on"));
+  }
+
+  $("btn-play").onclick = () => {
+    const a = $("aud");
+    $("btn-play").disabled = true;
+    a.currentTime = 0;
+    a.play().catch(()=>{});
+    const t0 = Date.now();
+    const stopper = setInterval(() => {
+      if (a.paused || a.currentTime >= 12 || Date.now() - t0 > 20000) {
+        clearInterval(stopper);
+        a.pause();
+        $("rate-block").style.display = "block";
+      }
+    }, 250);
+  };
+
+  $$("#rating button").forEach(b =>
+    b.addEventListener("click", () => {
+      $$("#rating button").forEach(x => x.classList.remove("on"));
+      b.classList.add("on");
+      $("btn-next").disabled = false;
+    }));
+
+  $("btn-next").onclick = () => {
+    const t = trials[idx];
+    const rating = parseInt(
+      document.querySelector("#rating button.on").dataset.v, 10);
+    const row = {
+      participant_id: "TEACHER_" + meta.rid,
+      list_id: "T",
+      position: idx + 1,
+      passage_id: t.passage,
+      voice_code: t.voice,
+      naturalness: rating,
+      effort: meta.years,
+      suitability: meta.l1,
+      started_at: 0,
+      finished_at: Date.now(),
+      user_agent: navigator.userAgent,
+    };
+    fetch(CFG.webapp_url, {
+      method:"POST", mode:"no-cors", body: JSON.stringify(row)
+    }).catch(()=>{});
+    idx++;
+    render();
+  };
+
+  function finish() {
+    $("s-rate").classList.remove("active");
+    $("s-done").classList.add("active");
+  }
+})();
+</script>
+</body>
+</html>
